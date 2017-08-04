@@ -170,7 +170,7 @@ def find_sections(decoded_divs, section_headings=[]):
         for heading in section_headings:
             if text and text.startswith(heading) and left<300:
                 section_start[top] = text
-    section_breaks = [ (top-10, section_start[top]) for top in sorted(section_start.keys())]
+    section_breaks = [ (top-14, section_start[top]) for top in sorted(section_start.iterkeys())]
     return section_breaks
     
 
@@ -192,7 +192,7 @@ def make_rows(decoded_divs):
         for i in range(top, top+width):
             in_use[i] = True
     # find line breaks by finding discontiniuties 
-    y_values = sorted(in_use.iterkeys())
+    y_values = sorted(list(in_use.iterkeys()))
     line_breaks = []
     for i in range(len(y_values)-1):
         if y_values[i+1]-y_values[i] > 1:
@@ -208,7 +208,7 @@ def make_rows(decoded_divs):
         rows[i].append(div)
     # sort each row from left to right
     for i in range(len(rows)):
-        rows[i] = sorted(rows[i])
+        rows[i].sort()
         
     return [ [ div[2] for div in row] for row in rows ]
         
@@ -376,7 +376,9 @@ def process_page_two(page, home_values):
     divs = page.findAll("div")
     decoded_divs = decode_divs(divs) # change divs to (left, top, text, width, height) tuples
     decoded_divs = merge_overlaps(decoded_divs)    # merge any overlapping text boxes
-    
+    if page_num+1 == 218:
+        pprint.pprint(decoded_divs, indent=4)
+
     section_breaks = find_sections(decoded_divs, ["Licensing", "Complaints",
                                                   "Incidents", "Care Services",
                                                   "Facility Fees", "Inspection",
@@ -390,9 +392,11 @@ def process_page_two(page, home_values):
         top = div[1]
         for i in range(len(section_breaks) -1):
             top = div[1]
-            if top >= section_breaks[i][0] and top < section_breaks[i+1][0]:
+            if top > section_breaks[i][0] and top < section_breaks[i+1][0]:
                 section_divs[section_breaks[i][1]].append(div)
 
+    print("DIVS")
+    pprint.pprint(section_divs, indent=4)
     # iterate through the each section
     for section_name in section_divs.keys():
         section_rows = make_rows(section_divs[section_name])
@@ -433,6 +437,7 @@ def process_page_two(page, home_values):
         elif section_name.startswith("Incidents"):
             if section_rows[-1][0].startswith("Source"):
                 section_rows = section_rows[:-1]
+                
             if len(section_rows[1]) == 2: # two columns
                 for row in section_rows[1:]:
                     kind = row[0]
@@ -449,18 +454,16 @@ def process_page_two(page, home_values):
                     home_values["Incidents-%s(BC Avg / 100 beds)"%(kind_a,)] =  row[5]
                     logger.debug("Incident special case on page:"+str(page_num+1))
             elif len(section_rows[1]) == 8: # 8 columns
-                sub_headings_a = section_rows[0][2:5]
-                sub_headings_b = section_rows[0][5:]
-                if len(section_rows) == 1:
-                    end_row = -2
-                else:
-                    end_row = -1
-                for row in section_rows[1:end_row]:
-                    kind_a = row[0]
-                    kind_b = row[4]
-                    for i in range(3):
-                        home_values["Incidents-%s(%s)"%(kind_a, sub_headings_a[i])] = row[i+1]
-                        home_values["Incidents-%s(%s)"%(kind_b, sub_headings_b[i])] = row[i+5]
+                sub_heading_a = section_rows[0][-3]
+                sub_heading_b = section_rows[0][-2]
+                sub_heading_c = section_rows[0][-1]
+                for row in section_rows[1:]:
+                    home_values["Incidents-%s(%s)"%(row[0], sub_heading_a)] = row[1]
+                    home_values["Incidents-%s(%s)"%(row[0], sub_heading_b)] = row[2]
+                    home_values["Incidents-%s(%s)"%(row[0], sub_heading_c)] = row[3]
+                    home_values["Incidents-%s(%s)"%(row[4], sub_heading_a)] = row[5]
+                    home_values["Incidents-%s(%s)"%(row[4], sub_heading_b)] = row[6]
+                    home_values["Incidents-%s(%s)"%(row[4], sub_heading_c)] = row[7]
             else:
                 logger.debug("unknown section size on page "+str(page_num))
           
@@ -494,14 +497,32 @@ def process_page_two(page, home_values):
         # CARE SERVICES
         #--------------
         elif section_name.startswith("Care Services"):
-            #  6 columns per row
-            if section_rows[-1][0].startswith("Source"):
-                section_rows = section_rows[:-1]
-            for row in section_rows[1:]: # skip the headers
-                home_values["Care Quality(Facility)-"+row[0]] = row[1]
-                home_values["Care Quality(BC Avg)-"+row[0]]  =  row[2]
-                
-
+            if len(section_rows[1]) == 3:
+                #  6 columns per row
+                if section_rows[-1][0].startswith("Source"):
+                    section_rows = section_rows[:-1]
+                header_a = section_rows[0][-2]
+                header_b = section_rows[0][-1]
+                for row in section_rows[1:]: # skip the headers
+                    home_values["Care Quality(%s)-%s" %(header_a, row[0])] = row[1]
+                    home_values["Care Quality(%s)-%s" %(header_b, row[0])] = row[2]
+          
+            elif len(section_rows[1]) == 4:
+                #  6 columns per row
+                if section_rows[-1][0].startswith("Source"):
+                    section_rows = section_rows[:-1]
+                header_a = section_rows[0][-3]
+                header_b = section_rows[0][-2]
+                header_c = section_rows[0][-1]
+                print(header_a, header_b, header_c)
+                pprint.pprint(section_rows, indent=4)
+                exit()
+                for row in section_rows[1:]: # skip the headers
+                    home_values["Care Quality(%s)-%s" %(header_a, row[0])] = row[1]
+                    home_values["Care Quality(%s)-%s" %(header_b, row[0])] = row[2]
+                    home_values["Care Quality(%s)-%s" %(header_c, row[0])] = row[3]
+            else:
+                logger.debug("mismatch number of columns on page %i, %i columns"%(page_num, len(section_rows[0]))) 
 
         elif section_name.startswith("Link to"):
             #
@@ -523,7 +544,7 @@ def main():
     global page_num
     
     print("reading pages...")
-    page_num= 17
+    page_num= 217
     while page_num < 600:
         
         curr_home = {}
