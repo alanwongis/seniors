@@ -114,18 +114,18 @@ def merge_divs(decoded_div_a, decoded_div_b):
     top_b = decoded_div_b[1]
     if top_b < top_a: # order the contents from top to bottom
         decoded_div_a, decoded_div_b = decoded_div_b, decoded_div_a
-    new_div = (decoded_div_a[0],
+    new_div = [decoded_div_a[0],
                decoded_div_a[1],
                decoded_div_a[2] + " " + decoded_div_b[2],
                decoded_div_a[3],
-               decoded_div_a[4] )
+               decoded_div_a[4] ]
     return new_div
 
 
 def merge_overlaps(decoded_divs): 
     """ merges overlapping divs in a list"""
     overlapping = []
-    sorted_divs = sorted(decoded_divs, cmp=lambda a,b: a[1]<b[1])
+    sorted_divs = sorted(decoded_divs, key=lambda a: a[1])
     i = 0
     while i<len(sorted_divs):
         div_a = sorted_divs[i]
@@ -208,7 +208,7 @@ def make_rows(decoded_divs):
         rows[i].append(div)
     # sort each row from left to right
     for i in range(len(rows)):
-        rows[i].sort()
+        rows[i] = sorted(rows[i], key=lambda a:a[0])
         
     return [ [ div[2] for div in row] for row in rows ]
         
@@ -374,11 +374,8 @@ def process_page_two(page, home_values):
     # look for those special cases and fix them..
 
     divs = page.findAll("div")
-    decoded_divs = decode_divs(divs) # change divs to (left, top, text, width, height) tuples
+    decoded_divs = decode_divs(divs) # change divs to (left, top, text, width, height) lists
     decoded_divs = merge_overlaps(decoded_divs)    # merge any overlapping text boxes
-    if page_num+1 == 218:
-        pprint.pprint(decoded_divs, indent=4)
-
     section_breaks = find_sections(decoded_divs, ["Licensing", "Complaints",
                                                   "Incidents", "Care Services",
                                                   "Facility Fees", "Inspection",
@@ -395,8 +392,6 @@ def process_page_two(page, home_values):
             if top > section_breaks[i][0] and top < section_breaks[i+1][0]:
                 section_divs[section_breaks[i][1]].append(div)
 
-    print("DIVS")
-    pprint.pprint(section_divs, indent=4)
     # iterate through the each section
     for section_name in section_divs.keys():
         section_rows = make_rows(section_divs[section_name])
@@ -514,9 +509,6 @@ def process_page_two(page, home_values):
                 header_a = section_rows[0][-3]
                 header_b = section_rows[0][-2]
                 header_c = section_rows[0][-1]
-                print(header_a, header_b, header_c)
-                pprint.pprint(section_rows, indent=4)
-                exit()
                 for row in section_rows[1:]: # skip the headers
                     home_values["Care Quality(%s)-%s" %(header_a, row[0])] = row[1]
                     home_values["Care Quality(%s)-%s" %(header_b, row[0])] = row[2]
@@ -544,7 +536,7 @@ def main():
     global page_num
     
     print("reading pages...")
-    page_num= 217
+    page_num= 17
     while page_num < 600:
         
         curr_home = {}
