@@ -13,7 +13,7 @@ import csv, codecs, cStringIO
 class UnicodeWriter:
     def __init__(self, f, dialect=csv.excel, encoding="utf-8-sig", **kwds):
         self.queue = cStringIO.StringIO()
-        self.writer = csv.writer(self.queue, dialect=dialect, **kwds)
+        self.writer = csv.writer(self.queue, dialect=dialect, quoting=csv.QUOTE_ALL, **kwds)
         self.stream = f
         self.encoder = codecs.getincrementalencoder(encoding)()
     def writerow(self, row):

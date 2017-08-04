@@ -5,7 +5,7 @@ import pprint
 import logging
 import re
 
-import BeautifulSoup # version 3
+import BeautifulSoup # needs to be version 3
 
 
 """
@@ -316,14 +316,13 @@ def process_page_one(page, home_values):
     # BEDS
     # ----
     bed_divs = make_section(decoded_divs, section3_start, section3_end)
-    bed_columns = make_columns(bed_divs,
-                               [(35,39),
-                                (252,272),
-                                (308, 309),
-                                (522, 542)])
-
-    home_values.update(match_column_values(bed_columns[0], bed_columns[1]))
-    home_values.update(match_column_values(bed_columns[2], bed_columns[3]))
+    rows = make_rows(bed_divs)
+    if rows[-1][0].startswith("Source"):
+        rows = rows[:-1]
+    for row in rows[2:]:
+        home_values["Beds-"+row[0]] = row[1]
+        if len(row)==4:
+            home_values["Beds-"+row[2]] = row[3]
 
     ### clean up typos  and special values
     
@@ -357,6 +356,11 @@ def process_page_one(page, home_values):
     # handle "Reasons for Inspection" typo
     merge_keys(home_values, "Reason for Inspection","Reason for inspection")
 
+    # handle a typo on page 359 where the Facility field and value is glitched
+    if page_num == 359:
+        home_values.pop("FacilityFacility")
+        home_values["Facility"] = "Normanna"
+        
     # remove extraneous values
     for key in ["", "Beds", "Beds*", "Beds and Rooms", "Room Configuration",
                 "Source: Health Authority", "Funding"]:
@@ -427,23 +431,23 @@ def process_page_two(page, home_values):
         # INCIDENTS
         #----------
         elif section_name.startswith("Incidents"):
+            if section_rows[-1][0].startswith("Source"):
+                section_rows = section_rows[:-1]
             if len(section_rows[1]) == 2: # two columns
-                   for row in section_rows[1:]:
-                       kind = row[0]
-                       home_values["Incidents-%s(%s)"% (kind, "Total")] = row[1]           
-            elif len(section_rows[1]) == 6: # six columns
-                sub_headings_a = section_rows[0][1]
-                sub_headings_b = section_rows[0][3]
-                if len(section_rows) == 1:
-                    end_row = -2
-                else:
-                    end_row = -1
-                for row in section_rows[1:end_row]:
+                for row in section_rows[1:]:
+                    kind = row[0]
+                    home_values["Incidents-%s(%s)"% (kind, "Total")] = row[1]           
+            elif len(section_rows[1]) == 6: # six columns SPECIAL CASE for suppressed/not available data
+                for row in section_rows[1:]:
                     kind_a = row[0]
-                    kind_b = row[4]
-                    for i in range(3):
-                        home_values["Incidents-%s(%s)"%(kind_a, sub_headings_a[i])] = row[i+1]
-                        home_values["Incidents-%s(%s)"%(kind_b, sub_headings_b[i])] = row[i+3]
+                    home_values["Incidents-%s(Total Number)"%(kind_a,)] =  row[1]
+                    home_values["Incidents-%s(Per 100 beds)"%(kind_a,)] =  row[1]
+                    home_values["Incidents-%s(BC Avg / 100 beds)"%(kind_a,)] =  row[2]
+                    kind_a = row[3]
+                    home_values["Incidents-%s(Total Number)"%(kind_a,)] =  row[4]
+                    home_values["Incidents-%s(Per 100 beds)"%(kind_a,)] =  row[4]
+                    home_values["Incidents-%s(BC Avg / 100 beds)"%(kind_a,)] =  row[5]
+                    logger.debug("Incident special case on page:"+str(page_num+1))
             elif len(section_rows[1]) == 8: # 8 columns
                 sub_headings_a = section_rows[0][2:5]
                 sub_headings_b = section_rows[0][5:]
@@ -458,19 +462,19 @@ def process_page_two(page, home_values):
                         home_values["Incidents-%s(%s)"%(kind_a, sub_headings_a[i])] = row[i+1]
                         home_values["Incidents-%s(%s)"%(kind_b, sub_headings_b[i])] = row[i+5]
             else:
-                logger.info("unknown section size on page "+str(page_num))
-                exit()
+                logger.debug("unknown section size on page "+str(page_num))
+          
 
         # COMPLAINTS
         #-----------
-        elif section_name.startswith("Complaints"):)
+        elif section_name.startswith("Complaints"):
         
             #  two columns per row
             if section_rows[-1][0].startswith("Source"):
                 section_rows = section_rows[:-1]
             for row in section_rows[1:]: # skip the header
-                home_values[row[0]] = row[1]
-                home_values[row[2]] = row[3]
+                home_values["Complaints-"+row[0]] = row[1]
+                home_values["Complaints-"+row[2]] = row[3]
                 
 
         # FACILITY FEES
@@ -490,55 +494,29 @@ def process_page_two(page, home_values):
         # CARE SERVICES
         #--------------
         elif section_name.startswith("Care Services"):
-            #
-            pass
+            #  6 columns per row
+            if section_rows[-1][0].startswith("Source"):
+                section_rows = section_rows[:-1]
+            for row in section_rows[1:]: # skip the headers
+                home_values["Care Quality(Facility)-"+row[0]] = row[1]
+                home_values["Care Quality(BC Avg)-"+row[0]]  =  row[2]
+                
+
 
         elif section_name.startswith("Link to"):
             #
             pass
         else:
             print("Can't recognize section", section_name) 
+            
+        # ** fixes for typos and errors **
+        
+        # handle "Reasons for Inspection" similar values
+        merge_keys(home_values, "Service Included-Other fees", "Service Included-Other Fees")
                 
     return
+              
         
- 
-
-    # "Care" has dual values(facility and BC avg) so some special handling is needed
-    home = match_column_values(care_columns[0], care_colums_[1])
-    bc = match_column_values(care_columns[0], care_columns[2])
-    for k in home.keys():
-        home_values["Care-"+k+" (Facility)"] = home[k]
-    for k in bc.keys():
-        home_values["Care-"+k+" (BC avg)"] = bc[k]
-
-    home_values.update(match_column_values(fee_columns[0], fee_columns[1]))
-    home_values.update(match_column_values(fee_columns[2], fee_columns[3]))
-    
-        
-    ## ... then clean up typos and other mistakes...
-            
-    # consolidate some keys with variant names
-    merge_keys(home_values,"Incidents-Serious adverse events",
-               "Incidents-Serious adverse events (Hospital Act)")
-
-    merge_keys(home_values,"Reason for Inspection","Reason for inspection")
-    merge_keys(home_values, "Reason for Inspection",
-               "Reason for licensing inspection")
-
-    merge_keys(home_values, "Current language(s) spoken by staff",
-              "Typical languages spoken by staff")
-    
-
-    # remove extraneous keys
-    remove_key(home_values, "Inspection")
-    remove_key(home_values, "Licensing")
-   
-            
-    # remove extraneous values
-    for k in ["", "Service"]:
-        remove_key(home_values, k)           
-        
-
        
 def main():
     global homes
