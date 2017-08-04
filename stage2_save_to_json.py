@@ -318,6 +318,7 @@ def process_page_one(page, home_values):
     bed_divs = make_section(decoded_divs, section3_start, section3_end)
     rows = make_rows(bed_divs)
     if rows[-1][0].startswith("Source"):
+        home_values["Beds-Notes"] = row[-1][0]
         rows = rows[:-1]
     for row in rows[2:]:
         home_values["Beds-"+row[0]] = row[1]
@@ -431,6 +432,7 @@ def process_page_two(page, home_values):
         #----------
         elif section_name.startswith("Incidents"):
             if section_rows[-1][0].startswith("Source"):
+                home_values["Incidents-Notes"] = " ".join(section_rows[-1])
                 section_rows = section_rows[:-1]
                 
             if len(section_rows[1]) == 2: # two columns
@@ -469,7 +471,9 @@ def process_page_two(page, home_values):
         
             #  two columns per row
             if section_rows[-1][0].startswith("Source"):
+                home_values["Complaints-Notes"] = " ".join(section_rows[-1])
                 section_rows = section_rows[:-1]
+ 
             for row in section_rows[1:]: # skip the header
                 home_values["Complaints-"+row[0]] = row[1]
                 home_values["Complaints-"+row[2]] = row[3]
@@ -481,12 +485,13 @@ def process_page_two(page, home_values):
             
             #  two columns per row
             if section_rows[-1][0].startswith("Source"):
+                home_values["Service Included?-Notes"] = " ".join(section_rows[-1])
                 section_rows = section_rows[:-1]
             if len(section_rows[-1]) == 3:
                 section_rows[-1].append(" ") # handle Other Fees which has no value
             for row in section_rows[2:]: # skip the title and the headers
-                home_values["Service Included-"+row[0]] = row[1]
-                home_values["Service Included-"+row[2]] = row[3]
+                home_values["Service Included?-"+row[0]] = row[1]
+                home_values["Service Included?-"+row[2]] = row[3]
                 
 
         # CARE SERVICES
@@ -495,6 +500,7 @@ def process_page_two(page, home_values):
             if len(section_rows[1]) == 3:
                 #  6 columns per row
                 if section_rows[-1][0].startswith("Source"):
+                    home_values["Care Quality-Notes"] = " ".join(section_rows[-1])
                     section_rows = section_rows[:-1]
                 header_a = section_rows[0][-2]
                 header_b = section_rows[0][-1]
@@ -505,6 +511,7 @@ def process_page_two(page, home_values):
             elif len(section_rows[1]) == 4:
                 #  6 columns per row
                 if section_rows[-1][0].startswith("Source"):
+                    home_values["Care Quality-Notes"] = " ".join(section_rows[-1])
                     section_rows = section_rows[:-1]
                 header_a = section_rows[0][-3]
                 header_b = section_rows[0][-2]
@@ -517,15 +524,15 @@ def process_page_two(page, home_values):
                 logger.debug("mismatch number of columns on page %i, %i columns"%(page_num, len(section_rows[0]))) 
 
         elif section_name.startswith("Link to"):
-            #
+            # ignore this section
             pass
         else:
             print("Can't recognize section", section_name) 
             
         # ** fixes for typos and errors **
         
-        # handle "Reasons for Inspection" similar values
-        merge_keys(home_values, "Service Included-Other fees", "Service Included-Other Fees")
+        # handle similar values
+        merge_keys(home_values, "Service Included?-Other fees", "Service Included?-Other Fees")
                 
     return
               
