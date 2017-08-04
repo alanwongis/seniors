@@ -2,8 +2,8 @@
 
 (Stage 1 of 3 of the conversion of the Seniors directory pdf)
 
-First an html file is generated from the pdf with the followin command:
-"pdf2txt.py -o text.html -A  -Y loose -t html -L 0.3 -M 1.0 directory.pdf"
+First an html file is generated from the pdf with the following command:
+"pdf2txt.py -o text.html -A  -Y loose -t html -L 0.4 -M 1.1 directory.pdf"
 
 (Note- you must have the pdf2txt library and utilities installed. It can be
       found here: http://www.unixuser.org/~euske/python/pdfminer/)

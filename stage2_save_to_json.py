@@ -125,16 +125,18 @@ def merge_divs(decoded_div_a, decoded_div_b):
 def merge_overlaps(decoded_divs): 
     """ merges overlapping divs in a list"""
     overlapping = []
-    sorted_divs = sorted(decoded_divs,cmp=lambda a,b: a[1]<b[1])
+    sorted_divs = sorted(decoded_divs, cmp=lambda a,b: a[1]<b[1])
     i = 0
     while i<len(sorted_divs):
         div_a = sorted_divs[i]
-        box_a = (div_a[0], div_a[1], div_a[3], div_a[4])
+        box_a = [div_a[0], div_a[1], div_a[3], div_a[4]]
         j = i + 1
         while j<len(sorted_divs):
             div_b = sorted_divs[j]
-            box_b = (div_b[0], div_b[1], div_b[3], div_b[4])
+            box_b = [div_b[0], div_b[1], div_b[3], div_b[4]]
             if are_overlapping(box_a, box_b):
+                box_a[3] = (box_b[1] + box_b[3]) - box_a[1] #merge the boundaries
+                div_a[4] = box_a[3]
                 sorted_divs.pop(j)
                 sorted_divs.pop(i)
                 sorted_divs.insert(i, merge_divs(div_a, div_b))                
@@ -153,7 +155,7 @@ def decode_divs(divs):
         width = style["width"]
         height = style["height"]
         text = to_string(div)
-        decoded.append( (left, top, text, width, height) )
+        decoded.append( [left, top, text, width, height] )
     return decoded
 
 
@@ -285,15 +287,23 @@ def process_page_one(page, home_values):
     # FACILITY
     # --------
     facility_divs = make_section(decoded_divs, section1_start, section2_start)
-    facility_columns = make_columns(facility_divs,
-                                [(37, 39),
-                                 (128, 130),
-                                 (307, 309),
-                                 (398, 400)])
+    left_side = []
+    right_side = []
+    for div in facility_divs:
+        if div[0]<306:
+            left_side.append(div)
+        else:
+            right_side.append(div)
+            
+    left_rows = make_rows(left_side)
+    right_rows = make_rows(right_side)
 
-    home_values.update(match_column_values(facility_columns[0], facility_columns[1]))
-    home_values.update(match_column_values(facility_columns[2], facility_columns[3]))
-
+    for row in left_rows:
+        home_values[row[0]] = row[1]
+    for row in right_rows:
+        home_values[row[0]] = row[1]
+     
+    
     # FUNDING
     # -------
     funding_divs = make_section(decoded_divs, section2_start, section3_start)
@@ -362,6 +372,7 @@ def process_page_two(page, home_values):
     divs = page.findAll("div")
     decoded_divs = decode_divs(divs) # change divs to (left, top, text, width, height) tuples
     decoded_divs = merge_overlaps(decoded_divs)    # merge any overlapping text boxes
+    
     section_breaks = find_sections(decoded_divs, ["Licensing", "Complaints",
                                                   "Incidents", "Care Services",
                                                   "Facility Fees", "Inspection",
@@ -452,15 +463,29 @@ def process_page_two(page, home_values):
 
         # COMPLAINTS
         #-----------
-        elif section_name.startswith("Complaints"):
-            #
-            pass
+        elif section_name.startswith("Complaints"):)
+        
+            #  two columns per row
+            if section_rows[-1][0].startswith("Source"):
+                section_rows = section_rows[:-1]
+            for row in section_rows[1:]: # skip the header
+                home_values[row[0]] = row[1]
+                home_values[row[2]] = row[3]
+                
 
-        # FACLIITY FEES
+        # FACILITY FEES
         #--------------
         elif section_name.startswith("Facility Fees"):
-            #
-            pass
+            
+            #  two columns per row
+            if section_rows[-1][0].startswith("Source"):
+                section_rows = section_rows[:-1]
+            if len(section_rows[-1]) == 3:
+                section_rows[-1].append(" ") # handle Other Fees which has no value
+            for row in section_rows[2:]: # skip the title and the headers
+                home_values["Service Included-"+row[0]] = row[1]
+                home_values["Service Included-"+row[2]] = row[3]
+                
 
         # CARE SERVICES
         #--------------
@@ -520,7 +545,7 @@ def main():
     global page_num
     
     print("reading pages...")
-    page_num= 189
+    page_num= 17
     while page_num < 600:
         
         curr_home = {}
@@ -544,14 +569,27 @@ def main():
             new_div  = BeautifulSoup.Tag(page_two, "div")
             new_div["style"] = "top: 228px; left:481px; height:10px; width:10px;"
             new_span = BeautifulSoup.Tag(page_two, "span")
-            new_span.insert(0, BeautifulSoup.NavigableString("0"))
+            new_span.insert(0, BeautifulSoup.NavigableString("N/A"))
             new_div.insert(0, new_span)
             page_two.html.body.insert(0,new_div)
         elif page_num+1 == 190:
             new_div  = BeautifulSoup.Tag(page_two, "div")
             new_div["style"] = "top: 232px; left:481px; height:10px; width:10px;"
             new_span = BeautifulSoup.Tag(page_two, "span")
-            new_span.insert(0, BeautifulSoup.NavigableString("0"))
+            new_span.insert(0, BeautifulSoup.NavigableString("N/A"))
+            new_div.insert(0, new_span)
+            page_two.html.body.insert(0,new_div)
+        elif page_num+1 == 350:
+            new_div  = BeautifulSoup.Tag(page_two, "div")
+            new_div["style"] = "top: 111px; left:249px; height:10px; width:10px;"
+            new_span = BeautifulSoup.Tag(page_two, "span")
+            new_span.insert(0, BeautifulSoup.NavigableString("N/A"))
+            new_div.insert(0, new_span)
+            page_two.html.body.insert(0,new_div)
+            new_div  = BeautifulSoup.Tag(page_two, "div")
+            new_div["style"] = "top: 111px; left:518px; height:10px; width:10px;"
+            new_span = BeautifulSoup.Tag(page_two, "span")
+            new_span.insert(0, BeautifulSoup.NavigableString("N/A"))
             new_div.insert(0, new_span)
             page_two.html.body.insert(0,new_div)
         
