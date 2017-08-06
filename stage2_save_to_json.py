@@ -319,10 +319,16 @@ def process_page_one(page, home_values):
     rows = make_rows(bed_divs)
     if rows[-1][0].startswith("Source"):
         rows = rows[:-1]
+    
+    subhead_a = rows[1][0].replace("*","")
+    subhead_b = rows[1][2].replace("*","")
     for row in rows[2:]:
+        if len(row) == 2:
+            home_values[subhead_a + "-" + row[0]] = row[1]
         home_values["Beds-"+row[0]] = row[1]
         if len(row)==4:
-            home_values["Beds-"+row[2]] = row[3]
+            home_values[subhead_a + "-" + row[0]] = row[1]
+            home_values[subhead_b + "-" + row[2]] = row[3]
 
     ### clean up typos  and special values
     
@@ -524,8 +530,14 @@ def process_page_two(page, home_values):
             
         # ** fixes for typos and errors **
         
+        # change any 0.0%* values to "info not available"
+        for k in home_values.keys():
+            if home_values[k] == "0.0%*":
+                home_values[k] = "Info not available"
+        
         # handle "Reasons for Inspection" similar values
         merge_keys(home_values, "Service Included-Other fees", "Service Included-Other Fees")
+ 
                 
     return
               
@@ -583,7 +595,12 @@ def main():
             new_span.insert(0, BeautifulSoup.NavigableString("N/A"))
             new_div.insert(0, new_span)
             page_two.html.body.insert(0,new_div)
-        
+         
+        if page_num+1 == 292: #handle a typo for Little Mountain Place where the Care Services has BC instead of BC Avg in a subheader
+            bad_span = page_two.find(text = re.compile("BC$"))
+            bad_span.string.replaceWith("BC Avg")
+
+
         process_page_two(page_two, curr_home)
 
         homes.append(curr_home)
