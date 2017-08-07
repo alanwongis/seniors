@@ -1,0 +1,25 @@
+This is a set of scripts to extract the data from the Residential-Care-Quick-Facts-Directory-2017.pdf.
+
+Prerequisite Python libraries:
+------------------------------
+
+BeautifulSoup (version 3)
+pdfminer
+
+Usage:
+------
+
+You need to run these scripts in this order:
+
+pdf2txt.py -o text.html -A  -Y loose -t html -L 0.4 -M 1.1 Residential-Care-Quick-Facts-Directory-2017.pdf
+python stage1_make_pages.py
+python stage2_save_to_json.py
+python stage3_json_to_csv.py
+
+The final output will be homes.json and home.csv which are JSON and comma-separated-values versions.
+
+This source code can be found at https://github.com/alanwongis/seniors
+
+
+Aug 6, 2017
+
