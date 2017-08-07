@@ -2,3 +2,7 @@
 *.html
 *.txt
 *.pdf
+*.csv
+*.json
+*.ods
+*.xlsx
